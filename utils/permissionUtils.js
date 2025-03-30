@@ -10,19 +10,19 @@ function getPermissionsByLevel(levelNumber) {
     permissions.push(
       {
         label: "Gérer les messages",
-        value: "manage_messages",
+        value: "ManageMessages",
         description:
           "Donne la permission de supprimer et modifier les messages.",
       },
       {
         label: "Muter les membres",
-        value: "mute_members",
+        value: "MuteMembers",
         description:
           "Donne la permission de restreindre la parole des membres.",
       },
       {
         label: "Déplacer les membres",
-        value: "move_members",
+        value: "MoveMembers",
         description:
           "Donne la permission de déplacer les membres entre les salons vocaux.",
       }
@@ -34,24 +34,24 @@ function getPermissionsByLevel(levelNumber) {
     permissions.push(
       {
         label: "Gérer les rôles",
-        value: "manage_roles",
+        value: "ManageRoles",
         description:
           "Donne la permission de créer, modifier et supprimer les rôles.",
       },
       {
         label: "Gérer les salons",
-        value: "manage_channels",
+        value: "ManageChannels",
         description:
           "Donne la permission de créer, modifier et supprimer les salons.",
       },
       {
         label: "Gérer les pseudos",
-        value: "manage_nicknames",
+        value: "ManageNicknames",
         description: "Donne la permission de modifier les pseudos des membres.",
       },
       {
         label: "Kick les membres",
-        value: "kick_members",
+        value: "KickMembers",
         description: "Donne la permission d'expulser les membres du serveur.",
       }
     );
@@ -62,25 +62,25 @@ function getPermissionsByLevel(levelNumber) {
     permissions.push(
       {
         label: "Bannir les membres",
-        value: "ban_members",
+        value: "BanMembers",
         description:
           "Donne la permission de bannir définitivement les membres du serveur.",
       },
       {
         label: "Gérer les emojis et stickers",
-        value: "manage_emojis_and_stickers",
+        value: "ManageEmojisAndStickers",
         description:
           "Donne la permission de gérer les emojis et stickers du serveur.",
       },
       {
         label: "Gérer les webhooks",
-        value: "manage_webhooks",
+        value: "ManageWebhooks",
         description:
           "Donne la permission de créer, modifier et supprimer les webhooks.",
       },
       {
         label: "Gérer les événements",
-        value: "manage_events",
+        value: "ManageEvents",
         description:
           "Donne la permission de créer, modifier et supprimer les événements du serveur.",
       }
@@ -91,7 +91,7 @@ function getPermissionsByLevel(levelNumber) {
     // Développeur
     permissions.push({
       label: "Administrateur",
-      value: "administrator",
+      value: "Administrator",
       description: "Donne toutes les permissions d'administration du serveur.",
     });
   }

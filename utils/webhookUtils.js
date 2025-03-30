@@ -2,20 +2,13 @@ const { EmbedBuilder, WebhookClient } = require("discord.js");
 
 // Configuration des webhooks (à adapter selon vos besoins)
 const WEBHOOK_URLS = {
-  systemActivation: "https://discord.com/api/webhooks/votre_id/votre_token",
-  roleCreated: "https://discord.com/api/webhooks/votre_id/votre_token",
-  // Vous pouvez utiliser la même URL pour tous les types ou des URLs différentes
+  systemActivation:
+    "https://discord.com/api/webhooks/1355697858203877577/wOFC0_6GSqbCfhntsh2BykrVYt3QtNsfvSODOn4qXfabbE2fKsgwZkg3Np8XFh7JnWyU",
+  roleCreated:
+    "https://discord.com/api/webhooks/1355951770177638542/pOfNoNbwonf30hHlYOG3B0WRV70AyV73TFdL1blK2rYOUGuIVhLxtEr59YZHfjNbyCaa",
+  // Ajoutez d'autres types de webhooks si nécessaire
 };
 
-/**
- * Envoie une notification via webhook
- * @param {Client} client - L'instance du client Discord
- * @param {string} type - Le type de webhook à utiliser
- * @param {Object} data - Les données pour construire l'embed
- * @param {string} data.title - Le titre de l'embed
- * @param {string} data.description - La description de l'embed
- * @param {Array} data.fields - Les champs à ajouter à l'embed
- */
 async function sendWebhookNotification(client, type, data) {
   const webhookUrl = WEBHOOK_URLS[type];
   if (!webhookUrl) {
@@ -24,7 +17,6 @@ async function sendWebhookNotification(client, type, data) {
   }
 
   try {
-    // Extraction de l'ID et du token à partir de l'URL du webhook
     const urlParts = webhookUrl.split("/");
     const webhookId = urlParts[urlParts.length - 2];
     const webhookToken = urlParts[urlParts.length - 1];
@@ -48,7 +40,6 @@ async function sendWebhookNotification(client, type, data) {
           "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg",
       });
 
-    // Ajout des champs si présents
     if (data.fields && Array.isArray(data.fields)) {
       embed.addFields(data.fields);
     }
