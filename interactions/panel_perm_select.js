@@ -1,137 +1,94 @@
 const {
-  PermissionsBitField,
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
   EmbedBuilder,
-  WebhookClient,
 } = require("discord.js");
-const { getConnection } = require("../utils/databaseUtils");
 const { checkPermission, PERMISSION_LEVELS } = require("../utils/permissions");
+const { getConnection } = require("../utils/databaseUtils");
+const { getPermissionsByLevel } = require("../utils/permissionUtils");
 
-const WEBHOOK_CHANNELS = {
-  roleCreated: "1355699628225720371", // Remplacez par l'ID de votre salon de logs
+// Configuration des niveaux de permission avec des labels lisibles
+const LEVEL_LABELS = {
+  1: "Modérateur",
+  2: "Administrateur",
+  3: "Co-Développeur",
+  4: "Développeur",
 };
 
 module.exports = {
-  name: "panel_perm_select",
+  name: "panel_perm_level_select",
   async execute(interaction, client) {
-    const selectedValues = interaction.values;
-    let totalPermissions = new PermissionsBitField();
-
-    for (const selectedValue of selectedValues) {
-      const permissionFlag =
-        PermissionsBitField.Flags[selectedValue.toUpperCase()];
-      if (permissionFlag) {
-        totalPermissions.add(permissionFlag);
-      }
-    }
-
     try {
+      const selectedLevel = interaction.values[0].split("_")[1];
+      const levelNumber = parseInt(selectedLevel);
+
+      // Vérification que l'utilisateur a bien le niveau requis
       const dbConnection = await getConnection();
-      const staffPerm = await checkPermission(
+      const userPermLevel = await checkPermission(
         interaction.user.id,
         PERMISSION_LEVELS.MODERATOR,
         dbConnection
       );
 
-      let staffPermName =
-        Object.keys(PERMISSION_LEVELS).find(
-          (key) => PERMISSION_LEVELS[key] === staffPerm
-        ) || "Inconnu";
+      if (userPermLevel < levelNumber) {
+        return interaction.reply({
+          content:
+            "Vous n'avez pas le niveau requis pour configurer ces permissions.",
+          ephemeral: true,
+        });
+      }
 
-      const role = await interaction.guild.roles.create({
-        name: `${interaction.user.username} -${staffPermName}- ${interaction.client.user.username} Bot`,
-        permissions: totalPermissions,
-        reason: `Rôle créé par le panel de permissions pour ${interaction.user.tag}`,
-      });
+      // Récupérer les permissions disponibles pour ce niveau
+      const availablePermissions = getPermissionsByLevel(levelNumber);
 
-      await interaction.member.roles.add(role);
+      if (availablePermissions.length === 0) {
+        return interaction.reply({
+          content: "Aucune permission disponible pour ce niveau.",
+          ephemeral: true,
+        });
+      }
+
+      const row = new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`panel_perm_select_${levelNumber}`)
+          .setPlaceholder(`Permissions niveau ${levelNumber}`)
+          .setMinValues(1)
+          .setMaxValues(availablePermissions.length)
+          .addOptions(availablePermissions)
+      );
 
       const embed = new EmbedBuilder()
-        .setColor("#2ECC71")
-        .setTitle("Rôle créé avec succès !")
+        .setColor("#3498DB")
+        .setTitle(`Configuration des permissions: Niveau ${levelNumber}`)
         .setDescription(
-          `Le rôle "${role.name}" a été créé et attribué à <@${interaction.user.id}>.`
+          `Vous configurez les permissions de niveau **${levelNumber} - ${LEVEL_LABELS[levelNumber]}**. Sélectionnez les permissions souhaitées:`
         )
-        .addFields({
-          name: "Permissions attribuées",
-          value: totalPermissions.toArray().join(", ") || "Aucune",
-        })
+        .addFields(
+          availablePermissions.map((perm) => ({
+            name: perm.label,
+            value: perm.description,
+          }))
+        )
         .setTimestamp()
         .setThumbnail(
-          "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940"
+          "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg"
         )
         .setFooter({
           text: "๖̶ζ͜͡Arkery͜͡ζ̶๖",
           iconURL:
-            "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940",
+            "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg",
         });
 
-      await interaction.reply({ embeds: [embed] });
-
-      sendWebhook(client, "roleCreated", {
-        guildName: interaction.guild.name,
-        guildId: interaction.guild.id,
-        roleName: role.name,
-        userId: interaction.user.id,
-        permissions: totalPermissions.toArray().join(", "),
+      await interaction.update({
+        embeds: [embed],
+        components: [row],
       });
     } catch (error) {
-      console.error("Erreur lors de la gestion des permissions:", error);
-      const errorEmbed = new EmbedBuilder()
-        .setColor("#E74C3C")
-        .setTitle("Erreur !")
-        .setDescription(
-          "Une erreur est survenue lors de la gestion des permissions."
-        )
-        .addFields({
-          name: "Message d'erreur",
-          value: error.message || "Inconnu",
-        })
-        .setTimestamp()
-        .setThumbnail(
-          "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940"
-        )
-        .setFooter({
-          text: "๖̶ζ͜͡Arkery͜͡ζ̶๖",
-          iconURL:
-            "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940",
-        });
-      await interaction.reply({ embeds: [errorEmbed] });
+      console.error("Erreur lors de la sélection du niveau:", error);
+      await interaction.reply({
+        content: "Une erreur est survenue lors de la sélection du niveau.",
+        ephemeral: true,
+      });
     }
   },
 };
-
-async function sendWebhook(client, type, data) {
-  const channelId = WEBHOOK_CHANNELS[type];
-  if (!channelId) return;
-
-  try {
-    const webhookClient = new WebhookClient({
-      channelId: channelId,
-      token: (await client.channels.fetch(channelId)).createWebhook({
-        name: "System Logs",
-      }).token,
-    });
-    const embed = new EmbedBuilder()
-      .setColor("#3498DB")
-      .setTitle("Rôle créé")
-      .setDescription(`Un rôle a été créé par <@${data.userId}>.`)
-      .addFields(
-        { name: "Nom du rôle", value: data.roleName },
-        { name: "Serveur", value: `${data.guildName} (${data.guildId})` },
-        { name: "Permissions", value: data.permissions || "Aucune" }
-      )
-      .setTimestamp()
-      .setThumbnail(
-        "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940"
-      )
-      .setFooter({
-        text: "๖̶ζ͜͡Arkery͜͡ζ̶๖",
-        iconURL:
-          "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940",
-      });
-    await webhookClient.send({ embeds: [embed] });
-    await webhookClient.destroy();
-  } catch (error) {
-    console.error(`Erreur lors de l'envoi du webhook "${type}":`, error);
-  }
-}

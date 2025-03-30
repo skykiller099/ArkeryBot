@@ -4,15 +4,14 @@ const {
   PermissionsBitField,
   WebhookClient,
 } = require("discord.js");
-const { getConnection } = require("../../utils/databaseUtils"); // Assurez-vous que le chemin est correct
+const { getConnection } = require("../../utils/databaseUtils");
 const {
   checkPermission,
   PERMISSION_LEVELS,
-} = require("../../utils/permissions"); // Assurez-vous que le chemin est correct
+} = require("../../utils/permissions");
 
-const WEBHOOK_CHANNELS = {
-  syncBans: "1355885146410324058", // Remplacez par l'ID de votre salon de logs
-};
+const LOG_CHANNEL_ID = "1355885146410324058";
+const BATCH_SIZE = 2000;
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -29,7 +28,6 @@ module.exports = {
         dbConnection
       );
 
-      // Vérifie si l'utilisateur est un administrateur, le propriétaire du serveur ou a le niveau de permission 2 ou supérieur
       if (
         !interaction.member.permissions.has(
           PermissionsBitField.Flags.Administrator
@@ -37,21 +35,25 @@ module.exports = {
         interaction.user.id !== interaction.guild.ownerId &&
         staffPerm < PERMISSION_LEVELS.ADMINISTRATOR
       ) {
-        const errorEmbed = new EmbedBuilder()
-          .setColor("#E74C3C")
-          .setDescription(
-            "Vous n'avez pas la permission d'utiliser cette commande."
-          )
-          .setTimestamp()
-          .setThumbnail(
-            "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940"
-          )
-          .setFooter({
-            text: "๖̶ζ͜͡Arkery͜͡ζ̶๖",
-            iconURL:
-              "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940",
-          });
-        return interaction.reply({ embeds: [errorEmbed] });
+        return interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor("#E74C3C")
+              .setDescription(
+                "Vous n'avez pas la permission d'utiliser cette commande."
+              )
+              .setTimestamp()
+              .setThumbnail(
+                "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940"
+              )
+              .setFooter({
+                text: "๖̶ζ͜͡Arkery͜͡ζ̶๖",
+                iconURL:
+                  "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940",
+              }),
+          ],
+          ephemeral: true,
+        });
       }
 
       const [bannedUsers] = await dbConnection.execute(
@@ -59,66 +61,99 @@ module.exports = {
       );
 
       if (bannedUsers.length === 0) {
-        const infoEmbed = new EmbedBuilder()
-          .setColor("#F1C40F")
-          .setDescription(
-            "Aucun utilisateur banni trouvé dans la base de données."
-          )
-          .setTimestamp()
-          .setThumbnail(
-            "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940"
-          )
-          .setFooter({
-            text: "๖̶ζ͜͡Arkery͜͡ζ̶๖",
-            iconURL:
-              "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed9352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940",
-          });
-        return interaction.reply({ embeds: [infoEmbed] });
+        return interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor("#F1C40F")
+              .setDescription(
+                "Aucun utilisateur banni trouvé dans la base de données."
+              )
+              .setTimestamp()
+              .setThumbnail(
+                "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940"
+              )
+              .setFooter({
+                text: "๖̶ζ͜͡Arkery͜͡ζ̶๖",
+                iconURL:
+                  "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940",
+              }),
+          ],
+          ephemeral: true,
+        });
       }
 
-      let bannedCount = 0;
       let bannedSuccessCount = 0;
       const totalBans = bannedUsers.length;
-
-      const progressEmbed = new EmbedBuilder()
-        .setColor("#3498DB")
-        .setDescription(
-          `Synchronisation des bannissements... (${bannedCount}/${totalBans})`
-        )
-        .setTimestamp()
-        .setThumbnail(
-          "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940"
-        )
-        .setFooter({
-          text: "๖̶ζ͜͡Arkery͜͡ζ̶๖",
-          iconURL:
-            "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940",
-        });
+      const bannedIds = new Set();
 
       const progressMessage = await interaction.reply({
-        embeds: [progressEmbed],
+        embeds: [
+          new EmbedBuilder()
+            .setColor("#3498DB")
+            .setDescription(
+              `Synchronisation des bannissements... (0/${totalBans}) 0%`
+            )
+            .setTimestamp()
+            .setThumbnail(
+              "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940"
+            )
+            .setFooter({
+              text: "๖̶ζ͜͡Arkery͜͡ζ̶๖",
+              iconURL:
+                "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940",
+            }),
+        ],
         fetchReply: true,
       });
 
-      for (const user of bannedUsers) {
-        try {
-          await interaction.guild.members.ban(user.user_id, {
-            reason:
-              "Synchronisation des bannissements depuis la base de données.",
-          });
-          bannedSuccessCount++;
-        } catch (error) {
-          console.error(
-            `Erreur lors du bannissement de ${user.user_id} :`,
-            error
-          );
-        }
+      for (let i = 0; i < bannedUsers.length; i += BATCH_SIZE) {
+        const batch = bannedUsers.slice(i, i + BATCH_SIZE);
+        const banPromises = batch.map(async (user) => {
+          const userId = user.user_id;
 
-        bannedCount++;
-        progressEmbed.setDescription(
-          `Synchronisation des bannissements... (${bannedCount}/${totalBans})`
-        );
-        await progressMessage.edit({ embeds: [progressEmbed] });
+          if (bannedIds.has(userId)) {
+            return;
+          }
+
+          bannedIds.add(userId);
+
+          try {
+            await interaction.guild.members.ban(userId, {
+              reason:
+                "Synchronisation des bannissements depuis la base de données.",
+            });
+            bannedSuccessCount++;
+          } catch (error) {}
+        });
+
+        await Promise.all(banPromises);
+
+        const percentage = Math.round(((i + BATCH_SIZE) / totalBans) * 100);
+
+        try {
+          await progressMessage.edit({
+            embeds: [
+              new EmbedBuilder()
+                .setColor("#3498DB")
+                .setDescription(
+                  `Synchronisation des bannissements... (${
+                    i + BATCH_SIZE
+                  }/${totalBans}) ${percentage}%`
+                )
+                .setTimestamp()
+                .setThumbnail(
+                  "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940"
+                )
+                .setFooter({
+                  text: "๖̶ζ͜͡Arkery͜͡ζ̶๖",
+                  iconURL:
+                    "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940",
+                }),
+            ],
+          });
+        } catch (error) {
+          console.error("Erreur lors de la modification du message :", error);
+        }
       }
 
       const successEmbed = new EmbedBuilder()
@@ -135,55 +170,51 @@ module.exports = {
           iconURL:
             "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940",
         });
+
       await interaction.editReply({ embeds: [successEmbed] });
 
-      await sendWebhook(client, "syncBans", {
-        executor: interaction.user.id,
-        guildName: interaction.guild.name,
-        guildId: interaction.guild.id,
-        bannedCount: bannedSuccessCount,
-      });
+      await sendWebhook(interaction, client, bannedSuccessCount);
 
       await dbConnection.end();
     } catch (error) {
       console.error(
-        "Erreur lors de la synchronisation des bannissements :",
+        "Erreur lors de la synchronisation des bannissements :",
         error
       );
-      const errorEmbed = new EmbedBuilder()
-        .setColor("#E74C3C")
-        .setDescription(
-          "Une erreur est survenue lors de la synchronisation des bannissements."
-        )
-        .addFields({
-          name: "Message d'erreur",
-          value: error.message || "Inconnu",
-        })
-        .setTimestamp()
-        .setThumbnail(
-          "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940"
-        )
-        .setFooter({
-          text: "๖̶ζ͜͡Arkery͜͡ζ̶๖",
-          iconURL:
-            "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940",
-        });
-      await interaction.editReply({ embeds: [errorEmbed] });
+
+      await interaction.editReply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor("#E74C3C")
+            .setDescription(
+              "Une erreur est survenue lors de la synchronisation des bannissements."
+            )
+            .addFields({
+              name: "Message d'erreur",
+              value: error.message || "Inconnu",
+            })
+            .setTimestamp()
+            .setThumbnail(
+              "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940"
+            )
+            .setFooter({
+              text: "๖̶ζ͜͡Arkery͜͡ζ̶๖",
+              iconURL:
+                "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940",
+            }),
+        ],
+      });
     }
   },
 };
 
-async function sendWebhook(client, type, data) {
-  const channelId = WEBHOOK_CHANNELS[type];
-  if (!channelId) return;
+async function sendWebhook(interaction, client, bannedSuccessCount) {
+  const channel = await client.channels.fetch(LOG_CHANNEL_ID);
+  if (!channel) return;
 
   try {
-    const webhookClient = new WebhookClient({
-      channelId: channelId,
-      token: (await client.channels.fetch(channelId)).createWebhook({
-        name: "Sync Bans Logs",
-      }).token,
-    });
+    const webhook = await channel.createWebhook({ name: "Sync Bans Logs" });
+    const webhookClient = new WebhookClient({ url: webhook.url });
     const embed = new EmbedBuilder()
       .setColor("#3498DB")
       .setTitle("Synchronisation des bannissements")
@@ -191,11 +222,14 @@ async function sendWebhook(client, type, data) {
         "Les bannissements de la base de données ont été synchronisés avec le serveur."
       )
       .addFields(
-        { name: "Exécuté par", value: `<@${data.executor}>` },
-        { name: "Serveur", value: `${data.guildName} (${data.guildId})` },
+        { name: "Exécuté par", value: `<@${interaction.user.id}>` },
+        {
+          name: "Serveur",
+          value: `${interaction.guild.name} (${interaction.guild.id})`,
+        },
         {
           name: "Nombre d'utilisateurs bannis",
-          value: data.bannedCount.toString(),
+          value: bannedSuccessCount.toString(),
         }
       )
       .setTimestamp()
@@ -208,8 +242,6 @@ async function sendWebhook(client, type, data) {
           "https://media.discordapp.net/attachments/1355811807847121017/1355811871797805198/Arkery_logo.jpeg?ex=67ea49b4&is=67e8f834&hm=eeb817dc2ca22a171ed29352aaa8c9d3469575b859c554f94a0a3062161fc5fc&=&format=webp&width=940&height=940",
       });
     await webhookClient.send({ embeds: [embed] });
-    await webhookClient.destroy();
-  } catch (error) {
-    console.error(`Erreur lors de l'envoi du webhook "syncBans":`, error);
-  }
+    await webhook.delete();
+  } catch (error) {}
 }
