@@ -1,10 +1,4 @@
-const {
-  Client,
-  GatewayIntentBits,
-  Collection,
-  REST,
-  Routes,
-} = require("discord.js");
+const { Client,GatewayIntentBits,Collection,REST,Routes} = require("discord.js");
 const fs = require("fs").promises;
 const path = require("path");
 const { TOKEN, CLIENT_ID } = require("./config");
